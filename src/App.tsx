@@ -20,6 +20,10 @@ import {
 } from 'lucide-react';
 
 import { useWebSerial } from './useWebSerial';
+import AIPanel from './components/AIPanel';
+import { SessionMemory } from './services/SessionMemory';
+import { LocalStructuringEngine } from './services/LocalStructuringEngine';
+import { KeepAlive } from './services/KeepAlive';
 
 // Color Preset Themes
 const COLOR_PRESETS = [
@@ -41,6 +45,7 @@ interface LogLine {
 
 export default function App() {
   const oledCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [isAIPanelOpen, setIsAIPanelOpen] = useState(true);
 
   // Web Serial Integration
 
@@ -70,6 +75,10 @@ export default function App() {
       lineDiv.appendChild(timeSpan);
     }
     
+    // Background Intelligence Layer
+    SessionMemory.addLog(log.time, log.tag, log.text, log.text);
+    LocalStructuringEngine.parseLine(log.time, log.tag, log.text);
+
     const tagSpan = document.createElement('span');
     tagSpan.className = `${log.color} ${log.bold ? 'font-bold' : ''}`;
     tagSpan.innerText = log.tag;
@@ -93,6 +102,13 @@ export default function App() {
     if (autoScrollEnabledRef.current) {
       anchor.scrollIntoView();
     }
+  }, []);
+
+  useEffect(() => {
+    // Start backend keepalive ping to prevent Render cold starts
+    // Update the URL to the production Render backend once deployed
+    KeepAlive.start('https://api.your-satan-backend.onrender.com', 30);
+    return () => KeepAlive.stop();
   }, []);
 
   const { 
@@ -297,13 +313,19 @@ export default function App() {
   const ledColor = status === 'CONNECTED' ? '#10b981' : (status === 'REBOOTING' ? '#ef4444' : '#ef4444');
 
   return (
-    <div 
-      className="flex-1 flex flex-col h-full max-w-7xl mx-auto w-full select-none"
-      style={{
-        '--display-color': displayColor,
-        '--display-color-rgb': displayColorRgb,
-      } as React.CSSProperties}
-    >
+    <div className="flex w-screen h-screen bg-[#020304] overflow-hidden font-sans select-none overflow-x-hidden">
+      
+      {/* AI Assistant Sidebar */}
+      <AIPanel isOpen={isAIPanelOpen} onToggle={() => setIsAIPanelOpen(!isAIPanelOpen)} />
+
+      {/* Main SATAN Dashboard */}
+      <div 
+        className="flex-1 flex flex-col h-full max-w-7xl mx-auto w-full select-none p-6"
+        style={{
+          '--display-color': displayColor,
+          '--display-color-rgb': displayColorRgb,
+        } as React.CSSProperties}
+      >
       {/* HEADER SECTION */}
       <header className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4 shrink-0 relative w-full">
         <div className="flex items-center gap-3.5 mr-auto">
@@ -950,6 +972,8 @@ export default function App() {
             </button>
           </div>
         </div>
+        </div>
+      </div>
     </div>
   );
 }
